@@ -2,22 +2,22 @@
 
 __author__ = 'Furnace'
 
-#import crcmod
-#import crcmod.predefined
+import crcmod
+import crcmod.predefined
 import json
 import redis
 
 class CRCTool:
     def __init__(self):
-        #crc16 = crcmod.predefined.Crc('crc-16-mcrf4xx')
+        self.crc16 = crcmod.predefined.Crc('crc-16-mcrf4xx')
         pass
 	
     def get_value(self, message):
-        #message = message.encode('utf-8')
-        #crc16.update(message)
-        #value = crc16.hexdigest()
-        #return value
-        return ''
+        message = message.encode('utf-8')
+        self.crc16.update(message)
+        value = self.crc16.hexdigest()
+        return value
+        #return ''
 		
 class RedisTool:
     def __init__(self, ipaddr, port, dbno):
@@ -52,3 +52,7 @@ if __name__ == '__main__':
     conn = redis_tool.get_conn()
     print( conn.ping() )
     # print( conn.info() )
+	
+    crc_tool = CRCTool()
+    crc_value = crc_tool.get_value('abc')
+    print('crc_value = ', crc_value)
