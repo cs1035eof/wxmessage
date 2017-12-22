@@ -9,8 +9,12 @@ import requests
 import time
 import tool
 
+MAX_POOL_SIZE = 10000
+
 class SpiderQSBK(object):
-    def __init__(self):
+    def __init__(self):	
+        self.crc_tool = tool.CRCTool()
+		
         # load conf.json 
         with open("conf.json",'r') as conf_file:
             conf = json.load(conf_file)
@@ -37,6 +41,9 @@ class SpiderQSBK(object):
         print('self.last_hot_msg_update_timestamp = ', self.last_hot_msg_update_timestamp)
         print('self.interval = ', self.interval)
 		
+        self.length = self.conn.llen('message_pool')
+        print('self.length = ', self.length)
+		
         ua = UserAgent()
         self.headers = {'UserAgent' : 'us.random'}
         self.page = 1
@@ -44,6 +51,9 @@ class SpiderQSBK(object):
         self.domain_text = 'https://www.qiushibaike.com/text/page/'
 	
     def update_text_msg(self, url):
+        if self.length >= MAX_POOL_SIZE:
+            return
+	
         response = requests.get(url, headers=self.headers, timeout=10)
         # print('url = ', url)
         content = response.text
@@ -63,9 +73,23 @@ class SpiderQSBK(object):
                 msg = item[1]
                 msg = msg.replace('<br/>', '').strip()
                 # print('msg = ', msg)
+				
+                msg_crc = self.crc_tool.get_value(msg)
+                # print('msg_crc = ', msg_crc)
+                exist = self.conn.sismember('message_pool_crc', msg_crc)
+                if exist :
+                    # print('msg_crc ', msg_crc, 'is exist.')
+                    continue
+				
                 self.conn.rpush('message_pool', msg)
+                self.conn.sadd('message_pool_crc', msg_crc)
+				
+                self.length += 1
 	
     def update_hot_msg(self, url):
+        if self.length >= MAX_POOL_SIZE:
+            return
+			
         response = requests.get(url, headers=self.headers)
         content = response.text
 		
@@ -82,15 +106,26 @@ class SpiderQSBK(object):
                 msg = item[1]
                 msg = msg.replace('<br/>', '').strip()
                 # print('msg = ', msg)
+				
+                msg_crc = self.crc_tool.get_value(msg)
+                # print('msg_crc = ', msg_crc)
+                exist = self.conn.sismember('message_pool_crc', msg_crc)
+                if exist :
+                    # print('msg_crc ', msg_crc, 'is exist.')
+                    continue
+				
                 self.conn.rpush('message_pool', msg)
+                self.conn.sadd('message_pool_crc', msg_crc)
+				
+                self.length += 1
 	
     def run(self):
         if not self.conn.ping():
             print('Is connected to Redis: ', self.conn.ping() )
             return
 		
-        for i in range(11, 11):
-        # for i in range(1, 13):
+        for i in range(13, 14):
+        # for i in range(1, 14):
             url = self.domain_text + str(i)
             print('text_url = ', url)
             self.update_text_msg(url)

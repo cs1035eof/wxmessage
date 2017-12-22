@@ -73,13 +73,16 @@ class WxMessage(object):
             print('Is connected to Redis: ', self.conn.ping() )
             return
 		
-        self.index = int( self.conn.get('index') )
+        self.index = self.conn.get('index')
+        if not self.index:
+            self.index = 0
+        self.index = int(self.index)
         #print('index = ', self.index)
 
     # 获取下一次的问候时间
     def get_next_tick_time(self, srcTime):
         if debug:
-            return srcTime + dt.timedelta(seconds=60)
+            return srcTime + dt.timedelta(seconds=30)
 		
         lenList = len(timeList)
         if lenList < 1:
@@ -126,8 +129,9 @@ class WxMessage(object):
         for msg in msgQueueTmp:
             self.msgQueue.append(msg)
 		
-        self.index += msgLength
-        self.conn.set('index', self.index)
+        if msgLength > 0:
+            self.index += msgLength
+            self.conn.set('index', self.index)
 		
         # print('index = ', self.index)
         # print('length = ', len(self.msgQueue))
